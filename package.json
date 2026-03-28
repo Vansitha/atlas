@@ -1,0 +1,38 @@
+{
+  "name": "atlas-ai",
+  "version": "0.1.0",
+  "description": "Turn any URL or bookmark into AI knowledge. Captures, classifies, and syncs skills and notes to your coding tools automatically.",
+  "type": "module",
+  "bin": {
+    "atlas": "./dist/bin/atlas.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm test",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@clack/prompts": "^0.9.1",
+    "cheerio": "^1.0.0",
+    "chokidar": "^4.0.3",
+    "commander": "^13.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "@vitest/coverage-v8": "^3.0.9",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module'
 import { Command } from 'commander'
+
+const require = createRequire(import.meta.url)
+const pkg = require('../../package.json') as { version: string }
 import { registerCaptureCommand } from '../src/cli/commands/capture.js'
 import { registerListCommand } from '../src/cli/commands/list.js'
 import { registerShowCommand } from '../src/cli/commands/show.js'
@@ -14,7 +18,7 @@ const program = new Command()
 program
   .name('atlas')
   .description('Turn any URL or bookmark into AI knowledge')
-  .version('0.1.0')
+  .version(pkg.version)
 
 registerCaptureCommand(program)
 registerListCommand(program)

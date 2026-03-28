@@ -1,25 +1,53 @@
 {
   "name": "atlas-ai",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Turn any URL or bookmark into AI knowledge. Captures, classifies, and syncs skills and notes to your coding tools automatically.",
   "type": "module",
+  "license": "MIT",
+  "author": "Vansitha Induja",
+  "homepage": "https://github.com/Vansitha/atlas#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vansitha/atlas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Vansitha/atlas/issues"
+  },
+  "keywords": [
+    "ai",
+    "cli",
+    "knowledge",
+    "skills",
+    "bookmarks",
+    "url",
+    "llm",
+    "coding-assistant",
+    "claude",
+    "cursor",
+    "copilot",
+    "windsurf",
+    "developer-tools"
+  ],
   "bin": {
     "atlas": "./dist/bin/atlas.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt"
   ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/bin/atlas.js",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run build && npm test",
-    "lint": "eslint src --ext .ts"
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

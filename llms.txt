@@ -1,0 +1,267 @@
+# Atlas
+
+> Turn any URL or bookmark into AI knowledge — automatically synced to your coding tools.
+
+Atlas is a CLI tool that captures URLs and converts them into structured AI skills and knowledge notes using the Agent Skills open standard (agentskills.io). Captured entries are stored as plain markdown and symlinked directly into AI coding tools: Claude Code, Cursor, GitHub Copilot, and Windsurf.
+
+## Project Setup
+
+**Requirements:** Node.js 18+, npm
+
+```bash
+git clone https://github.com/Vansitha/atlas.git
+cd atlas
+npm install
+npm run build
+```
+
+**Install globally from source:**
+
+```bash
+npm install -g .
+atlas init
+```
+
+**AI Provider (required for classification):** At least one of:
+- Claude CLI installed (`which claude`)
+- OpenCode CLI installed (`which opencode`)
+- `ANTHROPIC_API_KEY` environment variable set
+
+## Architecture
+
+### Source Layout
+
+```
+atlas/
+├── bin/
+│   └── atlas.ts                    # CLI entry point (Commander, shebang)
+├── src/
+│   ├── ai/
+│   │   ├── resolver.ts             # Transport fallback: claude-cli → opencode-cli → anthropic-sdk
+│   │   ├── intelligence/
+│   │   │   ├── classifier.ts       # classify(transport, content, forceType?) → ClassificationResponse
+│   │   │   └── generator.ts        # generate(transport, content, classification) → GenerationResponse
+│   │   ├── prompts/
+│   │   │   ├── classification.ts   # buildClassificationPrompt(content)
+│   │   │   └── generation.ts       # buildGenerationPrompt(content, classification)
+│   │   └── transport/
+│   │       ├── claude-cli.ts       # Shells out: claude --print --output-format text <prompt>
+│   │       ├── opencode-cli.ts     # Shells out: opencode run <prompt>
+│   │       └── anthropic-sdk.ts    # Uses @anthropic-ai/sdk, claude-sonnet-4-5-20251001
+│   ├── cli/
+│   │   ├── ui.ts                   # @clack/prompts wrappers (intro, outro, fail, spinner, confirm)
+│   │   ├── format.ts               # formatEntryTable(entries) for list/search output
+│   │   ├── detect.ts               # detectBrowsers(), detectCodingTools(), detectAiProviders()
+│   │   └── commands/
+│   │       ├── capture.ts          # atlas capture <url> [--dry-run] [--as] [--name] [--tags]
+│   │       ├── list.ts             # atlas list [--type] [--tag] [--limit]
+│   │       ├── show.ts             # atlas show <slug>
+│   │       ├── search.ts           # atlas search <query>
+│   │       ├── delete.ts           # atlas delete <slug> [--force]
+│   │       ├── providers.ts        # atlas providers status|sync
+│   │       ├── init.ts             # atlas init (5-step onboarding wizard)
+│   │       └── setup.ts            # atlas setup (alias for atlas init)
+│   ├── extraction/
+│   │   ├── pipeline.ts             # extractContent(url) — cache check + registry dispatch
+│   │   ├── registry.ts             # ExtractorRegistry — sorted by priority, try-each
+│   │   └── extractors/
+│   │       ├── twitter.ts          # fxtwitter API, priority 100
+│   │       ├── reddit.ts           # .json append trick, priority 100
+│   │       ├── llms-full-txt.ts    # /llms-full.txt fetch, priority 50
+│   │       ├── llms-txt.ts         # /llms.txt fetch, priority 40
+│   │       └── html.ts             # cheerio scrape, priority 0 (fallback)
+│   ├── providers/
+│   │   ├── registry.ts             # getAllProviders(), detectProviders(), syncAll(), verifyAll()
+│   │   ├── symlink.ts              # createSymlink(), removeSymlink(), verifySymlink()
+│   │   └── strategies/
+│   │       ├── claude-code.ts      # ~/.claude/skills/ and ~/.claude/rules/knowledge/
+│   │       ├── cursor.ts           # ~/.cursor/rules/atlas/
+│   │       ├── copilot.ts          # .github/copilot-instructions.md (append with markers)
+│   │       └── windsurf.ts         # ~/.codeium/windsurf/memories/atlas/
+│   ├── storage/
+│   │   ├── paths.ts                # All path constants: ATLAS_HOME=~/.ai-knowledge, SKILLS_DIR, etc.
+│   │   ├── manifest.ts             # .index.json CRUD: addEntry, removeEntry, findByUrlHash, search
+│   │   ├── writer.ts               # writeEntry(url, generation, classification, nameOverride?)
+│   │   ├── reader.ts               # readEntry(entry), readEntryFrontmatter(entry), entryExists(entry)
+│   │   └── content-cache.ts        # isCached(urlHash), updateCache(urlHash, extractorName) — 24h TTL
+│   ├── config/
+│   │   ├── loader.ts               # loadConfig(), saveConfig(), updateConfig(partial)
+│   │   └── defaults.ts             # defaultConfig() — empty config with daemon defaults
+│   ├── schemas/
+│   │   ├── frontmatter.ts          # Zod schema for all on-disk frontmatter
+│   │   ├── manifest.ts             # Zod schema for .index.json
+│   │   ├── classification.ts       # Zod schema for AI classification response
+│   │   ├── generation.ts           # Zod schema for AI generation response
+│   │   ├── config.ts               # Zod schema for config.json
+│   │   └── content-cache.ts        # Zod schema for .content-cache.json
+│   ├── accuracy/
+│   │   └── tracker.ts              # logOverride(url, aiType, userType), getAccuracyStats()
+│   ├── types/
+│   │   ├── index.ts                # Re-exports all types
+│   │   ├── ai.ts                   # AITransport, ExtractedContent, OutputType
+│   │   ├── config.ts               # AtlasConfig, BrowserChoice, AiProviderType
+│   │   ├── content.ts              # ContentExtractor interface
+│   │   └── providers.ts            # SyncProvider, SyncResult, SyncStatus, StoredEntry, CodingTool
+│   └── utils/
+│       ├── url.ts                  # isValidUrl(), normalizeUrl(), hashUrl(), generateSlug()
+│       ├── errors.ts               # AtlasError, ExtractionError, ClassificationError, NoAiProviderError
+│       └── logger.ts               # Thin logger wrapper
+├── tests/
+│   └── unit/                       # Vitest unit tests, 233 tests, 80%+ coverage
+├── package.json                    # atlas-ai, bin: atlas → dist/bin/atlas.js
+├── tsconfig.json                   # ESM, NodeNext, ES2022, strict
+└── vitest.config.ts                # v8 coverage, 80% thresholds
+```
+
+## Key Interfaces
+
+**ContentExtractor** — implement to add a new URL source:
+```typescript
+interface ContentExtractor {
+  readonly name: string
+  readonly priority: number          // higher = tried first
+  canHandle(url: URL): boolean
+  extract(url: URL): Promise<ExtractedContent>
+}
+```
+
+**SyncProvider** — implement to add a new coding tool:
+```typescript
+interface SyncProvider {
+  readonly name: CodingTool
+  detected(): boolean                // check if tool is installed
+  sync(entries: readonly StoredEntry[]): Promise<SyncResult>
+  verify(): Promise<SyncStatus>
+  cleanup(): Promise<void>
+}
+```
+
+**AITransport** — implement to add a new LLM provider:
+```typescript
+interface AITransport {
+  readonly name: string
+  available(): Promise<boolean>
+  send(prompt: string): Promise<string>
+}
+```
+
+## Data Flow: atlas capture <url>
+
+1. `isValidUrl(url)` — validates input
+2. `hashUrl(url)` + `findByUrlHash()` — dedup check
+3. `extractContent(url)` — content cache check → ExtractorRegistry → highest-priority matching extractor
+4. `resolveTransport()` — tries claude-cli → opencode-cli → anthropic-sdk in order
+5. `classify(transport, content, forceType?)` — AI returns `{ type, confidence, tags, suggestedSlug }`; Zod-validated; retries once on parse failure
+6. `generate(transport, content, classification)` — AI returns markdown in Agent Skills format; Zod-validated
+7. `writeEntry(url, generation, classification, nameOverride?)` — builds YAML frontmatter, strips AI frontmatter, writes to `~/.ai-knowledge/skills/<slug>/SKILL.md` or `~/.ai-knowledge/knowledge/<slug>.md`
+8. `addEntry(entry)` — appends to `.index.json` manifest
+9. `syncAll()` — reads `config.codingTools`, calls `provider.sync(allEntries)` for each configured provider
+
+## Storage Paths
+
+| Constant | Path |
+|---|---|
+| `ATLAS_HOME` | `~/.ai-knowledge` |
+| `SKILLS_DIR` | `~/.ai-knowledge/skills` |
+| `KNOWLEDGE_DIR` | `~/.ai-knowledge/knowledge` |
+| `MANIFEST_PATH` | `~/.ai-knowledge/.index.json` |
+| `CONFIG_PATH` | `~/.ai-knowledge/config.json` |
+| `CONTENT_CACHE_PATH` | `~/.ai-knowledge/.content-cache.json` |
+| `ACCURACY_LOG_PATH` | `~/.ai-knowledge/.accuracy-log.jsonl` |
+
+## Provider Sync Locations
+
+| Provider | Skills | Knowledge |
+|---|---|---|
+| Claude Code | `~/.claude/skills/<slug>` → symlink | `~/.claude/rules/knowledge/<slug>.md` → symlink |
+| Cursor | `~/.cursor/rules/atlas/skills/<slug>` → symlink | `~/.cursor/rules/atlas/knowledge/<slug>.md` → symlink |
+| Windsurf | `~/.codeium/windsurf/memories/atlas/skills/<slug>` → symlink | `~/.codeium/windsurf/memories/atlas/knowledge/<slug>.md` → symlink |
+| Copilot | `.github/copilot-instructions.md` appended between `<!-- atlas:start -->` and `<!-- atlas:end -->` markers |
+
+Symlinks are per-entry (never whole-directory) so existing user content in those directories is preserved.
+
+## Config Schema
+
+`~/.ai-knowledge/config.json`:
+```json
+{
+  "version": 1,
+  "browser": "chrome | brave | arc | edge | skip | null",
+  "codingTools": ["claude-code", "cursor", "copilot", "windsurf"],
+  "aiProvider": "claude-cli | opencode-cli | anthropic-sdk | null",
+  "daemon": {
+    "enabled": false,
+    "bookmarkFolder": "Atlas",
+    "debounceMs": 2000
+  },
+  "createdAt": "<ISO datetime>",
+  "updatedAt": "<ISO datetime>"
+}
+```
+
+## Frontmatter Schema
+
+Every captured entry has this frontmatter:
+```yaml
+---
+title: "Entry Title"
+type: skill | knowledge
+sourceUrl: "https://..."
+urlHash: <sha256 hex prefix>
+capturedAt: <ISO datetime>
+tags: ["tag1", "tag2"]
+description: "One-line summary"
+aiClassification: skill | knowledge
+userOverride: skill | knowledge    # only present if --as was used
+---
+```
+
+## CLI Commands Reference
+
+```
+atlas init                          Run onboarding wizard
+atlas setup                         Alias for atlas init
+atlas capture <url>                 Capture a URL
+  --dry-run                         Preview without saving
+  --as <skill|knowledge>            Force classification type
+  --name <title>                    Override generated title/slug
+  --tags <tag,tag>                  Append extra tags
+atlas list                          List all entries
+  --type <skill|knowledge>          Filter by type
+  --tag <tag>                       Filter by tag
+  --limit <n>                       Limit results
+atlas show <slug>                   Display full entry content
+atlas search <query>                Search by title, tags, or URL
+atlas delete <slug>                 Delete entry
+  --force                           Skip confirmation prompt
+atlas providers status              Show provider health
+atlas providers sync                Re-sync all entries
+```
+
+## Testing
+
+```bash
+npm test                            Run all tests (233 tests)
+npm run test:coverage               Run with v8 coverage (80%+ required)
+npm run test:watch                  Watch mode
+```
+
+Tests use Vitest with ESM support. Each module is independently testable via vi.mock(). Provider strategy tests use temp directories and real symlinks. AI transport tests mock the shell/SDK calls.
+
+## Adding a New Extractor
+
+1. Create `src/extraction/extractors/<name>.ts` implementing `ContentExtractor`
+2. Set `priority` (0–100; higher = tried first; 100=specific, 0=fallback)
+3. `canHandle(url)` — return true for URLs this extractor handles
+4. `extract(url)` — return `ExtractedContent` with `url`, `title`, `body`, `metadata`, `extractedAt`, `extractorName`
+5. Register in `src/extraction/pipeline.ts`: `registry.register(myExtractor)`
+
+## Adding a New Provider
+
+1. Create `src/providers/strategies/<name>.ts` implementing `SyncProvider`
+2. `detected()` — check if the tool is installed (check config dir existence)
+3. `sync(entries)` — create per-entry symlinks using `createSymlink()` from `symlink.ts`
+4. `verify()` — return `SyncStatus` with health info
+5. Add to `ALL_PROVIDERS` array in `src/providers/registry.ts`
+6. Add the tool name to `CodingTool` union in `src/types/providers.ts`
+7. Add the tool name to `configSchema` in `src/schemas/config.ts`

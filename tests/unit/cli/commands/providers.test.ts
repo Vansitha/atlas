@@ -59,4 +59,17 @@ describe('atlas providers sync', () => {
     expect(output).toContain('3 entries synced')
     spy.mockRestore()
   })
+
+  it('prints sync errors when they exist', async () => {
+    vi.mocked(syncAll).mockResolvedValue([
+      { provider: 'cursor', entriesSynced: 1, errors: ['react-hooks: symlink failed'] },
+    ])
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await makeProgram().parseAsync(['node', 'atlas', 'providers', 'sync'])
+
+    const output = spy.mock.calls.map((c) => c[0]).join('\n')
+    expect(output).toContain('symlink failed')
+    spy.mockRestore()
+  })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdirSync, rmSync, existsSync, lstatSync } from 'node:fs'
+import { mkdirSync, rmSync, existsSync, lstatSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { StoredEntry } from '../../../src/types/index.js'
@@ -28,7 +28,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => tempDir }
 })
 
-const { windsurfProvider } = await import('../../../src/providers/strategies/windsurf.js')
+const { windsurfProvider, removeWindsurfEntry } = await import('../../../src/providers/strategies/windsurf.js')
 
 const skillEntry: StoredEntry = {
   slug: 'react-hooks',
@@ -87,5 +87,29 @@ describe('windsurfProvider', () => {
   it('returns provider name windsurf', async () => {
     const result = await windsurfProvider.sync([])
     expect(result.provider).toBe('windsurf')
+  })
+
+  it('verify returns healthy when detected', async () => {
+    const status = await windsurfProvider.verify()
+    expect(status.configured).toBe(true)
+    expect(status.healthy).toBe(true)
+  })
+
+  it('cleanup resolves without error', async () => {
+    await expect(windsurfProvider.cleanup()).resolves.toBeUndefined()
+  })
+
+  it('removeWindsurfEntry removes skill symlink', async () => {
+    const linkPath = join(windsurfSkillsDir, skillEntry.slug)
+    symlinkSync(join(atlasSkillsDir, skillEntry.slug), linkPath)
+    removeWindsurfEntry(skillEntry)
+    expect(existsSync(linkPath)).toBe(false)
+  })
+
+  it('removeWindsurfEntry removes knowledge symlink', async () => {
+    const linkPath = join(windsurfKnowledgeDir, `${knowledgeEntry.slug}.md`)
+    symlinkSync(join(atlasKnowledgeDir, `${knowledgeEntry.slug}.md`), linkPath)
+    removeWindsurfEntry(knowledgeEntry)
+    expect(existsSync(linkPath)).toBe(false)
   })
 })

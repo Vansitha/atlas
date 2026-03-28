@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { Command } from 'commander'
+
+vi.mock('../../../../src/cli/commands/init.js', () => ({
+  runInitWizard: vi.fn(async () => {}),
+  registerInitCommand: vi.fn(),
+}))
+
+import { runInitWizard } from '../../../../src/cli/commands/init.js'
 import { registerSetupCommand } from '../../../../src/cli/commands/setup.js'
 
 function makeProgram() {
@@ -10,10 +17,8 @@ function makeProgram() {
 }
 
 describe('atlas setup', () => {
-  it('prints message about atlas init', async () => {
-    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  it('delegates to runInitWizard', async () => {
     await makeProgram().parseAsync(['node', 'atlas', 'setup'])
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('atlas init'))
-    spy.mockRestore()
+    expect(runInitWizard).toHaveBeenCalled()
   })
 })

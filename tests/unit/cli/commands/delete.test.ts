@@ -91,4 +91,16 @@ describe('atlas delete', () => {
 
     expect(confirm).toHaveBeenCalled()
   })
+
+  it('handles gracefully when file is already missing on disk', async () => {
+    vi.mocked(findBySlug).mockReturnValue(mockEntry)
+    const { existsSync: fsExists } = await import('node:fs')
+    vi.mocked(fsExists).mockReturnValue(false)
+
+    await expect(
+      makeProgram().parseAsync(['node', 'atlas', 'delete', 'react-hooks', '--force'])
+    ).resolves.toBeDefined()
+
+    expect(removeEntry).toHaveBeenCalledWith('react-hooks')
+  })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdirSync, rmSync, existsSync, lstatSync } from 'node:fs'
+import { mkdirSync, rmSync, existsSync, lstatSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { StoredEntry } from '../../../src/types/index.js'
@@ -28,7 +28,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => tempDir }
 })
 
-const { claudeCodeProvider } = await import('../../../src/providers/strategies/claude-code.js')
+const { claudeCodeProvider, removeClaudeCodeEntry } = await import('../../../src/providers/strategies/claude-code.js')
 
 const skillEntry: StoredEntry = {
   slug: 'react-hooks',
@@ -90,5 +90,29 @@ describe('claudeCodeProvider', () => {
     const result = await claudeCodeProvider.sync([badEntry])
     // Either syncs or errors — just check it doesn't throw
     expect(result.provider).toBe('claude-code')
+  })
+
+  it('verify returns healthy when detected', async () => {
+    const status = await claudeCodeProvider.verify()
+    expect(status.configured).toBe(true)
+    expect(status.healthy).toBe(true)
+  })
+
+  it('cleanup resolves without error', async () => {
+    await expect(claudeCodeProvider.cleanup()).resolves.toBeUndefined()
+  })
+
+  it('removeClaudeCodeEntry removes skill symlink', async () => {
+    const linkPath = join(claudeSkillsDir, skillEntry.slug)
+    symlinkSync(join(atlasSkillsDir, skillEntry.slug), linkPath)
+    removeClaudeCodeEntry(skillEntry)
+    expect(existsSync(linkPath)).toBe(false)
+  })
+
+  it('removeClaudeCodeEntry removes knowledge symlink', async () => {
+    const linkPath = join(claudeKnowledgeDir, `${knowledgeEntry.slug}.md`)
+    symlinkSync(join(atlasKnowledgeDir, `${knowledgeEntry.slug}.md`), linkPath)
+    removeClaudeCodeEntry(knowledgeEntry)
+    expect(existsSync(linkPath)).toBe(false)
   })
 })

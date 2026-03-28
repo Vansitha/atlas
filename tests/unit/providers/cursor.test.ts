@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdirSync, rmSync, existsSync, lstatSync } from 'node:fs'
+import { mkdirSync, rmSync, existsSync, lstatSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { StoredEntry } from '../../../src/types/index.js'
@@ -28,7 +28,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => tempDir }
 })
 
-const { cursorProvider } = await import('../../../src/providers/strategies/cursor.js')
+const { cursorProvider, removeCursorEntry } = await import('../../../src/providers/strategies/cursor.js')
 
 const skillEntry: StoredEntry = {
   slug: 'react-hooks',
@@ -87,5 +87,29 @@ describe('cursorProvider', () => {
   it('returns provider name cursor', async () => {
     const result = await cursorProvider.sync([])
     expect(result.provider).toBe('cursor')
+  })
+
+  it('verify returns healthy when detected', async () => {
+    const status = await cursorProvider.verify()
+    expect(status.configured).toBe(true)
+    expect(status.healthy).toBe(true)
+  })
+
+  it('cleanup resolves without error', async () => {
+    await expect(cursorProvider.cleanup()).resolves.toBeUndefined()
+  })
+
+  it('removeCursorEntry removes skill symlink', async () => {
+    const linkPath = join(cursorSkillsDir, skillEntry.slug)
+    symlinkSync(join(atlasSkillsDir, skillEntry.slug), linkPath)
+    removeCursorEntry(skillEntry)
+    expect(existsSync(linkPath)).toBe(false)
+  })
+
+  it('removeCursorEntry removes knowledge symlink', async () => {
+    const linkPath = join(cursorKnowledgeDir, `${knowledgeEntry.slug}.md`)
+    symlinkSync(join(atlasKnowledgeDir, `${knowledgeEntry.slug}.md`), linkPath)
+    removeCursorEntry(knowledgeEntry)
+    expect(existsSync(linkPath)).toBe(false)
   })
 })

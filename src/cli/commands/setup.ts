@@ -4,7 +4,8 @@ export function registerSetupCommand(program: Command): void {
   program
     .command('setup')
     .description('Configure Atlas (alias for `atlas init`)')
-    .action(() => {
-      console.log('Run `atlas init` for the full setup wizard.')
+    .action(async () => {
+      const { runInitWizard } = await import('./init.js')
+      await runInitWizard()
     })
 }

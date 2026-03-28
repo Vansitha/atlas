@@ -6,6 +6,7 @@ import { registerShowCommand } from '../src/cli/commands/show.js'
 import { registerSearchCommand } from '../src/cli/commands/search.js'
 import { registerDeleteCommand } from '../src/cli/commands/delete.js'
 import { registerProvidersCommand } from '../src/cli/commands/providers.js'
+import { registerInitCommand } from '../src/cli/commands/init.js'
 import { registerSetupCommand } from '../src/cli/commands/setup.js'
 
 const program = new Command()
@@ -21,6 +22,7 @@ registerShowCommand(program)
 registerSearchCommand(program)
 registerDeleteCommand(program)
 registerProvidersCommand(program)
+registerInitCommand(program)
 registerSetupCommand(program)
 
 program.parseAsync(process.argv).catch((err) => {

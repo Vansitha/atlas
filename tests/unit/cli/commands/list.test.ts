@@ -78,4 +78,14 @@ describe('atlas list', () => {
     expect(output).not.toContain('No entries found')
     spy.mockRestore()
   })
+
+  it('respects --limit option', async () => {
+    vi.mocked(listEntries).mockReturnValue([mockEntry, mockEntry, mockEntry])
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await makeProgram().parseAsync(['node', 'atlas', 'list', '--limit', '1'])
+
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
 })

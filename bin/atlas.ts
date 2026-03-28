@@ -12,6 +12,7 @@ import { registerDeleteCommand } from '../src/cli/commands/delete.js'
 import { registerProvidersCommand } from '../src/cli/commands/providers.js'
 import { registerInitCommand } from '../src/cli/commands/init.js'
 import { registerSetupCommand } from '../src/cli/commands/setup.js'
+import { registerDaemonCommand } from '../src/cli/commands/daemon.js'
 
 const program = new Command()
 
@@ -28,6 +29,7 @@ registerDeleteCommand(program)
 registerProvidersCommand(program)
 registerInitCommand(program)
 registerSetupCommand(program)
+registerDaemonCommand(program)
 
 program.parseAsync(process.argv).catch((err) => {
   console.error(err instanceof Error ? err.message : String(err))

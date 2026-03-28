@@ -158,6 +158,25 @@ atlas providers status
 atlas providers sync
 ```
 
+### `atlas daemon`
+
+Manage the background bookmark watcher. When running, Atlas automatically captures any URL you add to the configured bookmark folder in your browser.
+
+```bash
+# Start the background watcher
+atlas daemon start
+
+# Stop the background watcher
+atlas daemon stop
+
+# Show status (running, PID, last heartbeat)
+atlas daemon status
+```
+
+**How it works:** After running `atlas init` with a browser selected, `atlas daemon start` spawns a background process that watches your browser's bookmark file. When you add a URL to the "Atlas" folder (configurable in `~/.ai-knowledge/config.json`), it's automatically captured — same pipeline as `atlas capture <url>`.
+
+Daemon output is logged to `~/.ai-knowledge/.daemon.log`.
+
 ## How It Works
 
 ```
@@ -201,6 +220,9 @@ atlas capture <url>
 ├── .index.json               # manifest (fast search, dedup)
 ├── .content-cache.json       # 24h cache (avoid re-fetching)
 ├── .accuracy-log.jsonl       # AI classification accuracy tracking
+├── .daemon.pid               # daemon process ID (when running)
+├── .daemon.heartbeat         # daemon liveness timestamp
+├── .daemon.log               # daemon output log
 └── config.json               # atlas configuration
 ```
 
@@ -290,8 +312,8 @@ npm run dev
 - [x] Phase 4 — Provider sync (Claude Code, Cursor, Copilot, Windsurf)
 - [x] Phase 5 — CLI commands
 - [x] Phase 6 — Onboarding wizard (`atlas init`)
-- [ ] Phase 7 — Polish and npm publish
-- [ ] Phase 8 — Daemon / bookmark watcher (v1.1)
+- [x] Phase 7 — Polish and npm publish
+- [x] Phase 8 — Daemon / bookmark watcher
 
 ## License
 

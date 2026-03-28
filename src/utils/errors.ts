@@ -54,3 +54,10 @@ export class NoAiProviderError extends AtlasError {
     this.name = 'NoAiProviderError'
   }
 }
+
+export class DaemonError extends AtlasError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DaemonError'
+  }
+}

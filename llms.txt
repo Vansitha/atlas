@@ -140,7 +140,35 @@ atlas delete <slug>                 # Remove an entry
 
 atlas providers status              # Check sync health
 atlas providers sync                # Re-sync everything
+
+atlas daemon start                  # Start the background bookmark watcher
+atlas daemon stop                   # Stop the background bookmark watcher
+atlas daemon status                 # Check if the daemon is running
 ```
+
+---
+
+## Optional: Start the bookmark watcher daemon
+
+If the user configured a browser in Step 4, they can enable automatic capture. When running, any URL added to the "Atlas" bookmark folder in their browser is captured automatically — no manual `atlas capture` needed.
+
+```bash
+atlas daemon start
+```
+
+Verify it is running:
+
+```bash
+atlas daemon status
+```
+
+To stop it:
+
+```bash
+atlas daemon stop
+```
+
+The daemon log is at `~/.ai-knowledge/.daemon.log`. If something goes wrong, check that file first.
 
 ---
 
@@ -154,6 +182,9 @@ The coding tool is not installed or its config directory does not exist. Install
 
 **Capture fails with extraction error**
 The site may block automated requests. Try `atlas capture <url> --dry-run` to see what was fetched, or use `--as skill` to skip AI classification and force the type manually.
+
+**Daemon won't start**
+Run `atlas init` and ensure a browser is selected (not "Skip"). The daemon needs a browser configured to know which bookmarks file to watch. Also confirm the browser has been opened at least once so its bookmarks file exists.
 
 **Re-run setup at any time**
 ```bash

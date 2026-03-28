@@ -10,10 +10,25 @@ export const CONTENT_CACHE_PATH = join(ATLAS_HOME, '.content-cache.json')
 export const ACCURACY_LOG_PATH = join(ATLAS_HOME, '.accuracy-log.jsonl')
 export const DAEMON_PID_PATH = join(ATLAS_HOME, '.daemon.pid')
 export const DAEMON_HEARTBEAT_PATH = join(ATLAS_HOME, '.daemon.heartbeat')
+export const DAEMON_LOG_PATH = join(ATLAS_HOME, '.daemon.log')
 
-export const BROWSER_BOOKMARK_PATHS: Record<string, string> = {
-  chrome: join(homedir(), 'Library/Application Support/Google/Chrome/Default/Bookmarks'),
-  brave: join(homedir(), 'Library/Application Support/BraveSoftware/Brave-Browser/Default/Bookmarks'),
-  arc: join(homedir(), 'Library/Application Support/Arc/User Data/Default/Bookmarks'),
-  edge: join(homedir(), 'Library/Application Support/Microsoft Edge/Default/Bookmarks'),
-}
+const isWindows = process.platform === 'win32'
+
+// LOCALAPPDATA is always set for interactive Windows sessions;
+// the fallback covers service accounts and restricted environments
+const winBase = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local')
+const macBase = join(homedir(), 'Library', 'Application Support')
+
+export const BROWSER_BOOKMARK_PATHS: Record<string, string> = isWindows
+  ? {
+      chrome: join(winBase, 'Google', 'Chrome', 'User Data', 'Default', 'Bookmarks'),
+      brave: join(winBase, 'BraveSoftware', 'Brave-Browser', 'User Data', 'Default', 'Bookmarks'),
+      edge: join(winBase, 'Microsoft', 'Edge', 'User Data', 'Default', 'Bookmarks'),
+      arc: join(winBase, 'Arc', 'User Data', 'Default', 'Bookmarks'),
+    }
+  : {
+      chrome: join(macBase, 'Google', 'Chrome', 'Default', 'Bookmarks'),
+      brave: join(macBase, 'BraveSoftware', 'Brave-Browser', 'Default', 'Bookmarks'),
+      arc: join(macBase, 'Arc', 'User Data', 'Default', 'Bookmarks'),
+      edge: join(macBase, 'Microsoft Edge', 'Default', 'Bookmarks'),
+    }

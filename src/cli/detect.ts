@@ -23,8 +23,9 @@ export interface DetectedAiProvider {
 }
 
 function commandExists(cmd: string): boolean {
+  const finder = process.platform === 'win32' ? 'where' : 'which'
   try {
-    execSync(`which ${cmd}`, { stdio: 'ignore' })
+    execSync(`${finder} ${cmd}`, { stdio: 'ignore' })
     return true
   } catch {
     return false

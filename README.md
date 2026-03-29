@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/github-new.png" alt="Atlas" width="100%" />
+  <img src="assets/atlas-logo.png" alt="Atlas" />
 </p>
 
 <p align="center">

@@ -54,7 +54,8 @@ export interface BrowserProfile {
 }
 
 /**
- * Lists all browser profiles that have a Bookmarks file.
+ * Lists all real browser profiles by checking for a Preferences file.
+ * A Bookmarks file is not required — Chrome only creates it after the first bookmark.
  * Reads each profile's Preferences file to get the human-readable name.
  */
 export function listBrowserProfiles(browser: string): BrowserProfile[] {
@@ -71,18 +72,16 @@ export function listBrowserProfiles(browser: string): BrowserProfile[] {
   const results: BrowserProfile[] = []
 
   for (const dir of entries) {
-    const bookmarksFile = join(profileRoot, dir, 'Bookmarks')
-    if (!existsSync(bookmarksFile)) continue
+    // A real profile always has a Preferences file; skip system/cache dirs
+    const prefsFile = join(profileRoot, dir, 'Preferences')
+    if (!existsSync(prefsFile)) continue
 
     let profileName = dir
-    const prefsFile = join(profileRoot, dir, 'Preferences')
-    if (existsSync(prefsFile)) {
-      try {
-        const prefs = JSON.parse(readFileSync(prefsFile, 'utf-8')) as Record<string, unknown>
-        const name = (prefs?.profile as Record<string, unknown>)?.name
-        if (typeof name === 'string' && name.trim()) profileName = name.trim()
-      } catch {}
-    }
+    try {
+      const prefs = JSON.parse(readFileSync(prefsFile, 'utf-8')) as Record<string, unknown>
+      const name = (prefs?.profile as Record<string, unknown>)?.name
+      if (typeof name === 'string' && name.trim()) profileName = name.trim()
+    } catch {}
 
     results.push({ dir, name: profileName })
   }
@@ -192,8 +191,10 @@ export function findBookmarksPath(browser: string, profileDir?: string | null): 
   const profileRoot = BROWSER_PROFILE_ROOTS[browser]
 
   if (profileDir && profileRoot) {
+    // Return the path even if Bookmarks doesn't exist yet — Chrome creates it
+    // on the first bookmark, and chokidar will pick it up when it appears.
     const candidate = join(profileRoot, profileDir, 'Bookmarks')
-    if (existsSync(candidate)) return candidate
+    if (existsSync(join(profileRoot, profileDir, 'Preferences'))) return candidate
   }
 
   const defaultPath = BROWSER_BOOKMARK_PATHS[browser]

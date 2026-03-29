@@ -6,6 +6,7 @@ import { copilotProvider } from '../../providers/strategies/copilot.js'
 import { removeClaudeCodeEntry } from '../../providers/strategies/claude-code.js'
 import { removeCursorEntry } from '../../providers/strategies/cursor.js'
 import { removeWindsurfEntry } from '../../providers/strategies/windsurf.js'
+import { removeShellCompletion } from './init.js'
 import {
   CONFIG_PATH,
   MANIFEST_PATH,
@@ -78,6 +79,9 @@ export function registerUninstallCommand(program: Command): void {
       for (const file of DATA_FILES) {
         tryUnlink(file)
       }
+
+      // Remove shell completion from rc file
+      removeShellCompletion()
 
       outro(
         'Atlas data removed.\n' +

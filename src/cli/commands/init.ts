@@ -1,4 +1,6 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import * as clack from '@clack/prompts'
 import type { Command } from 'commander'
 import { loadConfig, updateConfig } from '../../config/loader.js'
@@ -7,6 +9,43 @@ import { detectBrowsers, detectCodingTools, detectAiProviders } from '../detect.
 import { syncAll } from '../../providers/registry.js'
 import { intro, outro, fail } from '../ui.js'
 import type { BrowserChoice, AiProviderType, CodingTool, AtlasConfig } from '../../types/index.js'
+
+const COMPLETION_LINE = 'eval "$(atlas completion)"  # atlas shell completion'
+const COMPLETION_MARKER = '# atlas shell completion'
+
+function detectRcFile(): string | null {
+  const shell = process.env.SHELL ?? ''
+  if (shell.includes('zsh')) return join(homedir(), '.zshrc')
+  if (shell.includes('bash')) return join(homedir(), '.bashrc')
+  return null
+}
+
+export function installShellCompletion(): boolean {
+  const rcFile = detectRcFile()
+  if (!rcFile) return false
+  try {
+    const existing = existsSync(rcFile) ? readFileSync(rcFile, 'utf-8') : ''
+    if (existing.includes(COMPLETION_MARKER)) return false // already installed
+    appendFileSync(rcFile, `\n${COMPLETION_LINE}\n`, 'utf-8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function removeShellCompletion(): boolean {
+  const rcFile = detectRcFile()
+  if (!rcFile || !existsSync(rcFile)) return false
+  try {
+    const lines = readFileSync(rcFile, 'utf-8').split('\n')
+    const filtered = lines.filter((l) => !l.includes(COMPLETION_MARKER) && !l.includes('atlas completion'))
+    const cleaned = filtered.join('\n').replace(/\n{3,}/g, '\n\n')
+    writeFileSync(rcFile, cleaned, 'utf-8')
+    return true
+  } catch {
+    return false
+  }
+}
 
 function savePartialAndExit(partial: Partial<AtlasConfig>): void {
   if (Object.keys(partial).length > 0) {
@@ -222,6 +261,11 @@ export async function runInitWizard(): Promise<void> {
     clack.log.warn(
       'No AI provider selected. Set ANTHROPIC_API_KEY or install Claude CLI to enable auto-classification.',
     )
+  }
+
+  const completionInstalled = installShellCompletion()
+  if (completionInstalled) {
+    clack.log.success('Shell completion installed. Restart your terminal or run: source ~/.zshrc')
   }
 
   outro(

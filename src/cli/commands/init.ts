@@ -7,6 +7,7 @@ import { loadConfig, updateConfig } from '../../config/loader.js'
 import { ATLAS_HOME, CONFIG_PATH, listBrowserProfiles, findBookmarksPath, ensureBookmarkFolder } from '../../storage/paths.js'
 import { detectBrowsers, detectCodingTools, detectAiProviders } from '../detect.js'
 import { syncAll } from '../../providers/registry.js'
+import { startDaemon } from '../../daemon/process-manager.js'
 import { intro, outro, fail } from '../ui.js'
 import type { BrowserChoice, AiProviderType, CodingTool, AtlasConfig } from '../../types/index.js'
 
@@ -151,11 +152,15 @@ export async function runInitWizard(): Promise<void> {
   if (browserChoice !== 'skip') {
     const bookmarksPath = findBookmarksPath(browserChoice as string, browserProfile)
     if (bookmarksPath) {
-      const created = ensureBookmarkFolder(bookmarksPath, bookmarkFolder)
-      if (created) {
+      const result = ensureBookmarkFolder(bookmarksPath, bookmarkFolder)
+      if (result === 'created') {
         clack.log.success(`Created "${bookmarkFolder}" bookmark folder in your browser's bookmark bar.`)
-      } else {
+      } else if (result === 'exists') {
         clack.log.info(`"${bookmarkFolder}" bookmark folder already exists.`)
+      } else {
+        clack.log.warn(
+          `Could not create the "${bookmarkFolder}" bookmark folder. Check that the browser profile directory is writable.`,
+        )
       }
     }
   }
@@ -235,6 +240,7 @@ export async function runInitWizard(): Promise<void> {
 
   // Save final config
   const aiProvider = providerChoice === 'skip' ? null : (providerChoice as AiProviderType)
+  const watchingBrowser = browserChoice !== 'skip'
 
   const finalConfig = updateConfig({
     browser: browserChoice as BrowserChoice,
@@ -242,7 +248,7 @@ export async function runInitWizard(): Promise<void> {
     codingTools: selectedTools,
     aiProvider,
     daemon: {
-      enabled: false,
+      enabled: watchingBrowser,
       bookmarkFolder,
       debounceMs: 2000,
     },
@@ -266,6 +272,20 @@ export async function runInitWizard(): Promise<void> {
   const completionInstalled = installShellCompletion()
   if (completionInstalled) {
     clack.log.success('Shell completion installed. Restart your terminal or run: source ~/.zshrc')
+  }
+
+  if (watchingBrowser) {
+    const spin = clack.spinner()
+    spin.start('Starting bookmark watcher...')
+    try {
+      const { pid } = startDaemon()
+      spin.stop(`Bookmark watcher started (PID ${pid}). Atlas will capture bookmarks added to "${bookmarkFolder}" automatically.`)
+    } catch (err) {
+      spin.stop('Could not start bookmark watcher automatically.')
+      clack.log.warn(
+        `Run \`atlas daemon start\` manually once your browser profile has been opened. (${err instanceof Error ? err.message : String(err)})`,
+      )
+    }
   }
 
   outro(

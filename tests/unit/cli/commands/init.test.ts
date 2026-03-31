@@ -33,6 +33,13 @@ vi.mock('../../../../src/storage/paths.js', () => ({
   DAEMON_PID_PATH: '/tmp/atlas-init-test/.daemon.pid',
   DAEMON_HEARTBEAT_PATH: '/tmp/atlas-init-test/.daemon.heartbeat',
   BROWSER_BOOKMARK_PATHS: {},
+  listBrowserProfiles: vi.fn(() => []),
+  findBookmarksPath: vi.fn(() => null),
+  ensureBookmarkFolder: vi.fn(() => 'created' as const),
+}))
+
+vi.mock('../../../../src/daemon/process-manager.js', () => ({
+  startDaemon: vi.fn(() => ({ pid: 99999, bookmarkFolder: 'Atlas' })),
 }))
 
 vi.mock('../../../../src/cli/detect.js', () => ({
@@ -62,9 +69,10 @@ vi.mock('@clack/prompts', () => ({
   confirm: vi.fn(),
   select: vi.fn(),
   multiselect: vi.fn(),
+  text: vi.fn(),
   spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
   note: vi.fn(),
-  log: { warn: vi.fn() },
+  log: { warn: vi.fn(), success: vi.fn(), info: vi.fn() },
   isCancel: vi.fn(() => false),
 }))
 
@@ -86,6 +94,7 @@ beforeEach(() => {
   vi.mocked(clack.isCancel).mockReturnValue(false)
   vi.mocked(clack.select).mockResolvedValueOnce('chrome').mockResolvedValueOnce('claude-cli')
   vi.mocked(clack.multiselect).mockResolvedValue(['claude-code'])
+  vi.mocked(clack.text).mockResolvedValue('Atlas')
   vi.mocked(existsSync).mockReturnValue(false)
 })
 

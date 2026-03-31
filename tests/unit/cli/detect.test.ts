@@ -1,22 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-vi.mock('../../../src/storage/paths.js', () => ({
-  ATLAS_HOME: '/tmp/atlas-test',
-  SKILLS_DIR: '/tmp/atlas-test/skills',
-  KNOWLEDGE_DIR: '/tmp/atlas-test/knowledge',
-  CONFIG_PATH: '/tmp/atlas-test/config.json',
-  MANIFEST_PATH: '/tmp/atlas-test/.index.json',
-  CONTENT_CACHE_PATH: '/tmp/atlas-test/.content-cache.json',
-  ACCURACY_LOG_PATH: '/tmp/atlas-test/.accuracy-log.jsonl',
-  DAEMON_PID_PATH: '/tmp/atlas-test/.daemon.pid',
-  DAEMON_HEARTBEAT_PATH: '/tmp/atlas-test/.daemon.heartbeat',
-  BROWSER_BOOKMARK_PATHS: {
-    chrome: '/Users/test/Library/Application Support/Google/Chrome/Default/Bookmarks',
-    brave: '/Users/test/Library/Application Support/BraveSoftware/Brave-Browser/Default/Bookmarks',
-    arc: '/Users/test/Library/Application Support/Arc/User Data/Default/Bookmarks',
-    edge: '/Users/test/Library/Application Support/Microsoft Edge/Default/Bookmarks',
-  },
-}))
+vi.mock('../../../src/storage/paths.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/storage/paths.js')>()
+  return {
+    ...actual,
+    ATLAS_HOME: '/tmp/atlas-test',
+    SKILLS_DIR: '/tmp/atlas-test/skills',
+    KNOWLEDGE_DIR: '/tmp/atlas-test/knowledge',
+    CONFIG_PATH: '/tmp/atlas-test/config.json',
+    MANIFEST_PATH: '/tmp/atlas-test/.index.json',
+    CONTENT_CACHE_PATH: '/tmp/atlas-test/.content-cache.json',
+    ACCURACY_LOG_PATH: '/tmp/atlas-test/.accuracy-log.jsonl',
+    DAEMON_PID_PATH: '/tmp/atlas-test/.daemon.pid',
+    DAEMON_HEARTBEAT_PATH: '/tmp/atlas-test/.daemon.heartbeat',
+  }
+})
 
 vi.mock('../../../src/providers/registry.js', () => ({
   getAllProviders: vi.fn(),

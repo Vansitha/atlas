@@ -7,23 +7,22 @@ vi.mock('node:fs', () => ({
   unlinkSync: vi.fn(),
   openSync: vi.fn(),
   closeSync: vi.fn(),
+  realpathSync: vi.fn((p: string) => p),
 }))
 
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
 }))
 
-vi.mock('../../../src/storage/paths.js', () => ({
-  DAEMON_PID_PATH: '/fake/.daemon.pid',
-  DAEMON_HEARTBEAT_PATH: '/fake/.daemon.heartbeat',
-  DAEMON_LOG_PATH: '/fake/.daemon.log',
-  BROWSER_BOOKMARK_PATHS: {
-    chrome: '/fake/Chrome/Bookmarks',
-    brave: '/fake/Brave/Bookmarks',
-    arc: '/fake/Arc/Bookmarks',
-    edge: '/fake/Edge/Bookmarks',
-  },
-}))
+vi.mock('../../../src/storage/paths.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/storage/paths.js')>()
+  return {
+    ...actual,
+    DAEMON_PID_PATH: '/fake/.daemon.pid',
+    DAEMON_HEARTBEAT_PATH: '/fake/.daemon.heartbeat',
+    DAEMON_LOG_PATH: '/fake/.daemon.log',
+  }
+})
 
 vi.mock('../../../src/config/loader.js', () => ({
   loadConfig: vi.fn(),

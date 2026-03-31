@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 export const ATLAS_HOME = join(homedir(), '.ai-knowledge')
 export const SKILLS_DIR = join(ATLAS_HOME, 'skills')
@@ -131,34 +131,53 @@ function bookmarkFolderExists(node: ChromeBookmarkNode, name: string): boolean {
   return false
 }
 
+export type EnsureBookmarkFolderResult = 'created' | 'exists' | 'no-file'
+
+// Chrome timestamps: microseconds since 1601-01-01
+const MS_EPOCH_DIFF = 11644473600000n
+function chromeTimestamp(): string {
+  return ((BigInt(Date.now()) + MS_EPOCH_DIFF) * 1000n).toString()
+}
+
+function makeEmptyBookmarksFile(): ChromeBookmarksFile {
+  const ts = chromeTimestamp()
+  return {
+    checksum: '',
+    roots: {
+      bookmark_bar: { id: '1', name: 'Bookmarks bar', type: 'folder', children: [], date_added: ts, date_modified: '0' },
+      other:        { id: '2', name: 'Other bookmarks', type: 'folder', children: [], date_added: ts, date_modified: '0' },
+      synced:       { id: '3', name: 'Mobile bookmarks', type: 'folder', children: [], date_added: ts, date_modified: '0' },
+    },
+    version: 1,
+  }
+}
+
 /**
  * Creates the named folder in Chrome's bookmark bar if it doesn't already exist.
- * Returns true if created, false if it already existed or could not be written.
+ * If the bookmarks file is missing, creates it with a minimal Chrome-compatible structure.
+ * Returns 'created' if the folder was added, 'exists' if it was already present,
+ * or 'no-file' if the bookmarks file could not be written.
  * Chrome will recalculate the checksum on its next write.
  */
-export function ensureBookmarkFolder(bookmarksPath: string, folderName: string): boolean {
-  let raw: string
-  try {
-    raw = readFileSync(bookmarksPath, 'utf-8')
-  } catch {
-    return false
-  }
-
+export function ensureBookmarkFolder(bookmarksPath: string, folderName: string): EnsureBookmarkFolderResult {
   let data: ChromeBookmarksFile
-  try {
-    data = JSON.parse(raw) as ChromeBookmarksFile
-  } catch {
-    return false
+
+  const fileExists = existsSync(bookmarksPath)
+  if (fileExists) {
+    try {
+      data = JSON.parse(readFileSync(bookmarksPath, 'utf-8')) as ChromeBookmarksFile
+    } catch {
+      return 'no-file'
+    }
+  } else {
+    data = makeEmptyBookmarksFile()
   }
 
   const roots = [data.roots.bookmark_bar, data.roots.other, data.roots.synced]
-  if (roots.some((root) => bookmarkFolderExists(root, folderName))) return false
+  if (roots.some((root) => bookmarkFolderExists(root, folderName))) return 'exists'
 
   const maxId = Math.max(...roots.map(findMaxBookmarkId))
-
-  // Chrome timestamps: microseconds since 1601-01-01
-  const MS_EPOCH_DIFF = 11644473600000n
-  const timestamp = ((BigInt(Date.now()) + MS_EPOCH_DIFF) * 1000n).toString()
+  const timestamp = chromeTimestamp()
 
   const newFolder: ChromeBookmarkNode = {
     children: [],
@@ -173,10 +192,11 @@ export function ensureBookmarkFolder(bookmarksPath: string, folderName: string):
   data.checksum = '' // Chrome recalculates on next write
 
   try {
+    mkdirSync(dirname(bookmarksPath), { recursive: true })
     writeFileSync(bookmarksPath, JSON.stringify(data, null, 3), 'utf-8')
-    return true
+    return 'created'
   } catch {
-    return false
+    return 'no-file'
   }
 }
 

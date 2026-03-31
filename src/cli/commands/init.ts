@@ -5,11 +5,11 @@ import * as clack from '@clack/prompts'
 import type { Command } from 'commander'
 import { loadConfig, updateConfig } from '../../config/loader.js'
 import { ATLAS_HOME, CONFIG_PATH, listBrowserProfiles, findBookmarksPath, ensureBookmarkFolder } from '../../storage/paths.js'
-import { detectBrowsers, detectCodingTools, detectAiProviders } from '../detect.js'
+import { detectBrowsers, detectCodingTools, detectAiProviders, detectKnowledgeApps } from '../detect.js'
 import { syncAll } from '../../providers/registry.js'
 import { startDaemon } from '../../daemon/process-manager.js'
 import { intro, outro, fail } from '../ui.js'
-import type { BrowserChoice, AiProviderType, CodingTool, AtlasConfig } from '../../types/index.js'
+import type { BrowserChoice, AiProviderType, CodingTool, KnowledgeApp, AtlasConfig } from '../../types/index.js'
 
 const COMPLETION_LINE = 'eval "$(atlas completion)"  # atlas shell completion'
 const COMPLETION_MARKER = '# atlas shell completion'
@@ -86,11 +86,9 @@ export async function runInitWizard(): Promise<void> {
   // Step 1: Browser
   const detectedBrowsers = detectBrowsers()
 
+  const BROWSER_LABELS: Record<string, string> = { chrome: 'Chrome', brave: 'Brave', arc: 'Arc', edge: 'Edge' }
   const browserOptions: { value: BrowserChoice; label: string; hint?: string }[] = [
-    { value: 'chrome', label: 'Chrome', hint: detectedBrowsers.includes('chrome') ? 'detected' : undefined },
-    { value: 'brave', label: 'Brave', hint: detectedBrowsers.includes('brave') ? 'detected' : undefined },
-    { value: 'arc', label: 'Arc', hint: detectedBrowsers.includes('arc') ? 'detected' : undefined },
-    { value: 'edge', label: 'Edge', hint: detectedBrowsers.includes('edge') ? 'detected' : undefined },
+    ...detectedBrowsers.map((b) => ({ value: b, label: BROWSER_LABELS[b] ?? b, hint: 'detected' })),
     { value: 'skip', label: 'Skip (manual capture only)' },
   ]
 
@@ -168,12 +166,18 @@ export async function runInitWizard(): Promise<void> {
   // Step 2: Coding tools
   const detectedTools = detectCodingTools()
 
-  const toolOptions: { value: CodingTool; label: string; hint?: string }[] = [
-    { value: 'claude-code', label: 'Claude Code', hint: detectedTools.includes('claude-code') ? 'detected' : undefined },
-    { value: 'cursor', label: 'Cursor', hint: detectedTools.includes('cursor') ? 'detected' : undefined },
-    { value: 'copilot', label: 'GitHub Copilot', hint: detectedTools.includes('copilot') ? 'detected' : undefined },
-    { value: 'windsurf', label: 'Windsurf', hint: detectedTools.includes('windsurf') ? 'detected' : undefined },
-  ]
+  const TOOL_LABELS: Record<string, string> = {
+    'claude-code': 'Claude Code',
+    'cursor': 'Cursor',
+    'copilot': 'GitHub Copilot',
+    'windsurf': 'Windsurf',
+    'opencode': 'OpenCode',
+  }
+  const toolOptions: { value: CodingTool; label: string; hint: string }[] = detectedTools.map((t) => ({
+    value: t,
+    label: TOOL_LABELS[t] ?? t,
+    hint: 'detected',
+  }))
 
   const toolChoices = await clack.multiselect<CodingTool>({
     message: 'Which coding tools should Atlas sync to?',
@@ -238,8 +242,33 @@ export async function runInitWizard(): Promise<void> {
     return
   }
 
+  // Step 4: Knowledge app
+  const detectedKnowledgeApps = detectKnowledgeApps()
+
+  const KNOWLEDGE_APP_LABELS: Record<string, string> = { vscode: 'VS Code', cursor: 'Cursor', obsidian: 'Obsidian' }
+  const knowledgeAppOptions: { value: KnowledgeApp | 'skip'; label: string; hint?: string }[] = [
+    ...detectedKnowledgeApps.map((a) => ({ value: a, label: KNOWLEDGE_APP_LABELS[a] ?? a, hint: 'detected' })),
+    { value: 'skip', label: 'Skip' },
+  ]
+
+  const knowledgeAppChoice = await clack.select<KnowledgeApp | 'skip'>({
+    message: 'Which app should `atlas open` use to browse your knowledge files?',
+    options: knowledgeAppOptions,
+    initialValue: detectedKnowledgeApps[0] ?? 'skip',
+  })
+
+  if (clack.isCancel(knowledgeAppChoice)) {
+    savePartialAndExit({
+      browser: browserChoice as BrowserChoice,
+      codingTools: selectedTools,
+      aiProvider: providerChoice === 'skip' ? null : (providerChoice as AiProviderType),
+    })
+    return
+  }
+
   // Save final config
   const aiProvider = providerChoice === 'skip' ? null : (providerChoice as AiProviderType)
+  const knowledgeApp = knowledgeAppChoice === 'skip' ? null : (knowledgeAppChoice as KnowledgeApp)
   const watchingBrowser = browserChoice !== 'skip'
 
   const finalConfig = updateConfig({
@@ -247,6 +276,7 @@ export async function runInitWizard(): Promise<void> {
     browserProfile,
     codingTools: selectedTools,
     aiProvider,
+    knowledgeApp,
     daemon: {
       enabled: watchingBrowser,
       bookmarkFolder,
@@ -256,9 +286,10 @@ export async function runInitWizard(): Promise<void> {
 
   clack.note(
     [
-      `Browser:      ${finalConfig.browser ?? 'none (manual capture only)'}`,
-      `Coding tools: ${finalConfig.codingTools.length > 0 ? finalConfig.codingTools.join(', ') : 'none'}`,
-      `AI provider:  ${finalConfig.aiProvider ?? 'none'}`,
+      `Browser:       ${finalConfig.browser ?? 'none (manual capture only)'}`,
+      `Coding tools:  ${finalConfig.codingTools.length > 0 ? finalConfig.codingTools.join(', ') : 'none'}`,
+      `AI provider:   ${finalConfig.aiProvider ?? 'none'}`,
+      `Knowledge app: ${finalConfig.knowledgeApp ?? 'none'}`,
     ].join('\n'),
     'Configuration saved',
   )
@@ -288,10 +319,12 @@ export async function runInitWizard(): Promise<void> {
     }
   }
 
+  const openLine = knowledgeApp ? '  atlas open                Open knowledge files\n' : ''
   outro(
     'Setup complete! Try these commands:\n' +
     '  atlas capture <url>       Capture a URL\n' +
     '  atlas list                See all entries\n' +
+    `${openLine}` +
     '  atlas providers status    Check sync status',
   )
 }

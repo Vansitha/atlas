@@ -2,6 +2,7 @@ import { claudeCodeProvider } from './strategies/claude-code.js'
 import { cursorProvider } from './strategies/cursor.js'
 import { copilotProvider } from './strategies/copilot.js'
 import { windsurfProvider } from './strategies/windsurf.js'
+import { opencodeProvider } from './strategies/opencode.js'
 import { loadConfig } from '../config/loader.js'
 import { listEntries } from '../storage/manifest.js'
 import { logger } from '../utils/logger.js'
@@ -12,6 +13,7 @@ const ALL_PROVIDERS: SyncProvider[] = [
   cursorProvider,
   copilotProvider,
   windsurfProvider,
+  opencodeProvider,
 ]
 
 export function getAllProviders(): readonly SyncProvider[] {

@@ -8,6 +8,7 @@ export function defaultConfig(): AtlasConfig {
     browserProfile: null,
     codingTools: [],
     aiProvider: null,
+    knowledgeApp: null,
     daemon: {
       enabled: false,
       bookmarkFolder: 'Atlas',

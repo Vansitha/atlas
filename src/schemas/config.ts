@@ -4,8 +4,9 @@ export const configSchema = z.object({
   version: z.literal(1),
   browser: z.enum(['chrome', 'brave', 'arc', 'edge', 'skip']).nullable(),
   browserProfile: z.string().nullable().default(null),
-  codingTools: z.array(z.enum(['claude-code', 'cursor', 'copilot', 'windsurf'])),
+  codingTools: z.array(z.enum(['claude-code', 'cursor', 'copilot', 'windsurf', 'opencode'])),
   aiProvider: z.enum(['claude-cli', 'opencode-cli', 'anthropic-sdk']).nullable(),
+  knowledgeApp: z.enum(['vscode', 'cursor', 'obsidian']).nullable().default(null),
   daemon: z.object({
     enabled: z.boolean(),
     bookmarkFolder: z.string().default('Atlas'),

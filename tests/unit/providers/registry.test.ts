@@ -56,6 +56,16 @@ vi.mock('../../../src/providers/strategies/windsurf.js', () => ({
   },
 }))
 
+vi.mock('../../../src/providers/strategies/opencode.js', () => ({
+  opencodeProvider: {
+    name: 'opencode',
+    detected: vi.fn(() => false),
+    sync: vi.fn(async () => ({ provider: 'opencode', entriesSynced: 0, errors: [] })),
+    verify: vi.fn(async () => ({ provider: 'opencode', configured: false, healthy: false, details: 'not found' })),
+    cleanup: vi.fn(async () => {}),
+  },
+}))
+
 vi.mock('../../../src/utils/logger.js', () => ({
   logger: { warn: vi.fn(), debug: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
@@ -67,8 +77,8 @@ beforeEach(() => {
 })
 
 describe('getAllProviders', () => {
-  it('returns all 4 providers', () => {
-    expect(getAllProviders()).toHaveLength(4)
+  it('returns all 5 providers', () => {
+    expect(getAllProviders()).toHaveLength(5)
   })
 })
 

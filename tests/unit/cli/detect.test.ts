@@ -112,9 +112,12 @@ describe('detectAiProviders', () => {
     expect(result.map((r) => r.value)).toContain('anthropic-sdk')
   })
 
-  it('returns empty array when nothing is available', () => {
+  it('always includes anthropic-sdk even when nothing else is available', () => {
     vi.mocked(execSync).mockImplementation(() => { throw new Error('not found') })
-    expect(detectAiProviders()).toEqual([])
+    const result = detectAiProviders()
+    expect(result).toHaveLength(1)
+    expect(result[0].value).toBe('anthropic-sdk')
+    expect(result[0].hint).toBe('requires ANTHROPIC_API_KEY')
   })
 
   it('returns detected hint for found providers', () => {

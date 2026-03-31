@@ -1,4 +1,4 @@
-export type CodingTool = 'claude-code' | 'cursor' | 'copilot' | 'windsurf'
+export type CodingTool = 'claude-code' | 'cursor' | 'copilot' | 'windsurf' | 'opencode'
 
 export interface SyncResult {
   readonly provider: CodingTool

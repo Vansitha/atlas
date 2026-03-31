@@ -66,8 +66,10 @@ describe('htmlExtractor', () => {
     await expect(htmlExtractor.extract(new URL('https://example.com'))).rejects.toThrow('content type')
   })
 
-  it('throws when extracted content is too short', async () => {
+  it('returns fallback content when extracted body is too short', async () => {
     mockFetch('<html><body><p>Hi</p></body></html>')
-    await expect(htmlExtractor.extract(new URL('https://example.com'))).rejects.toThrow()
+    const result = await htmlExtractor.extract(new URL('https://example.com'))
+    expect(result.body).toContain('example.com')
+    expect(result.extractorName).toBe('html')
   })
 })
